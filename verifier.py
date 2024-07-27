@@ -116,6 +116,44 @@ def sortDemos():
             verifier["demos"][match.group(2)].append(match.group(1))
     log("Parsed mdp output")
 
+def checksumFailes():
+    with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    # Regular expression to find SAR checksum failures
+    checksumPattern = re.compile(r'SAR checksum FAIL \(([^)]+)\)')
+
+    # Set to store unique checksum failures
+    checksums = set()
+
+    # Find all matches and add to the set
+    for match in checksumPattern.findall(content):
+        checksums.add(match)
+
+    return checksums
+
+def extractCvars():
+    with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    # Regular expressions to find cvars and file checksums
+    cvar_pattern = re.compile(r"\[    0\] \[SAR\] cvar '([^']+)' = '([^']+)'")
+    file_pattern = re.compile(r"\[    0\] \[SAR\] file \"([^\"]+)\" has checksum ([A-F0-9]+)")
+
+    # Lists to store cvars and file checksums
+    cvars = set()
+    files = set()
+
+    # Find all cvar matches and add to the list
+    for match in cvar_pattern.findall(content):
+        cvars.add(f"cvar '{match[0]}' = '{match[1]}'")
+
+    # Find all file checksum matches and add to the list
+    for match in file_pattern.findall(content):
+        files.add(f"file '{match[0]}' has checksum {match[1]}")
+
+    return cvars, files
+
 async def initTelnet():
     # Launch Portal 2
     log("Launching Portal 2")
