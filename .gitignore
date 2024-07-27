@@ -164,3 +164,4 @@ cython_debug/
 mdp/*
 run/*
 config.json
+output.json

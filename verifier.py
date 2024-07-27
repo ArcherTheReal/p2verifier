@@ -100,6 +100,13 @@ def initMdp():
             print(errors)
             exit(1)
 
+def fileDecorator(filename):
+    filename = filename.split(".")[0]
+    filename = filename.split("_")[-1]
+    if filename.isdigit():
+        return int(filename)
+    return 0
+
 def sortDemos():
     log("Parsing mdp output")
     with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
@@ -114,6 +121,7 @@ def sortDemos():
             if match.group(2) not in verifier["demos"]:
                 verifier["demos"][match.group(2)] = []
             verifier["demos"][match.group(2)].append(match.group(1))
+    verifier["demos"] = {k: sorted(v, key=fileDecorator) for k, v in verifier["demos"].items()}
     log("Parsed mdp output")
 
 def checksumFailes():
@@ -153,6 +161,62 @@ def extractCvars():
         files.add(f"file '{match[0]}' has checksum {match[1]}")
 
     return list(cvars), list(files)
+
+def extractRecordingTime(demoFilename):
+    with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    # Regular expression to find the demo block and extract the recording time
+    demo_pattern = re.compile(
+        rf"demo: 'demos/{re.escape(demoFilename)}'\s+.*?recorded at (\d{{4}}/\d{{2}}/\d{{2}} \d{{2}}:\d{{2}}:\d{{2}} UTC)",
+        re.DOTALL
+    )
+    
+    match = demo_pattern.search(content)
+    if match:
+        return match.group(1)
+    else:
+        return None
+
+def extractCommands():
+    with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
+        content = file.read()
+
+     # Regular expression to find demo blocks
+    demo_pattern = re.compile(
+        r"demo: 'demos/(?P<demoname>[^']+)'\s+.*?'(?P<mapname>[^']+)' on .*?events:\s+(?P<commands>.*?)\n\s*\n",
+        re.DOTALL
+    )
+    
+    # Patterns to exclude
+    exclude_patterns = [
+        r"\[.*?\] sar_always_transmit_heavy_ents \d+",
+        r"\[.*?\] sv_player_funnel_into_portals 1+",
+        r"\[.*?\] ui_transition_effect \d+",
+        r"\[.*?\] file .*",
+        r"\[.*?\] cvar .*",
+        r"SAR checksum FAIL .*"
+    ]
+    
+    demos = {}
+    
+    for match in demo_pattern.finditer(content):
+        demoname = match.group('demoname')
+        mapname = match.group('mapname')
+        commands = match.group('commands').strip().split('\n')
+        
+        # Filter out the excluded patterns
+        filtered_commands = []
+        for cmd in commands:
+            if not any(re.match(pattern, cmd.strip()) for pattern in exclude_patterns):
+                filtered_commands.append(cmd.strip())
+        
+        if filtered_commands:
+            if mapname not in demos:
+                demos[mapname] = {}
+            demos[mapname][demoname] = filtered_commands
+    
+    return demos
 
 async def initTelnet():
     # Launch Portal 2
@@ -224,11 +288,25 @@ async def fetchServerNums():
 def fillOutput():
     sarChecksums = checksumFailes()
     cvars, files = extractCvars()
+    startdemo = verifier["demos"]["sp_a1_intro1"][0]
+    enddemo = verifier["demos"]["sp_a4_finale4"][-1]
+
+    startTimestamp = extractRecordingTime(startdemo)
+    endTimestamp = extractRecordingTime(enddemo)
+
+    timestampFormat = "%Y/%m/%d %H:%M:%S UTC"
+    
+    # Parse the timestamps into datetime objects
+    time1 = datetime.datetime.strptime(startTimestamp, timestampFormat)
+    time2 = datetime.datetime.strptime(endTimestamp, timestampFormat)
 
 
     res = {
-        "rtaTimeBegin": None,
-        "rtaTimeEnd": None,
+        "rta": {
+            "start": startTimestamp,
+            "end": endTimestamp,
+            "total": str(time2-time1),
+        },
         "servernumber": {
             "start": None,
             "end": None,
@@ -261,6 +339,7 @@ async def main():
 
     sortDemos()
 
+    print(json.dumps(extractCommands(), indent=4))
 
     # start telnet
     # verifier["reader"], verifier["writer"] = await initTelnet()
