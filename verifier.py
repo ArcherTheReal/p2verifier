@@ -3,6 +3,15 @@ import json
 import winreg
 import datetime
 import vdf
+import telnetlib3
+import asyncio
+import shutil
+import subprocess
+import socket
+import time
+import re
+
+verifier = {}
 
 def log(message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -40,6 +49,164 @@ def getPortal2Folder():
     log("Failed to find Portal 2 installation")
     return None
 
+def clearFolders():
+    if os.path.exists(os.path.join(verifier["mdp"], "demos")):
+        shutil.rmtree(os.path.join(verifier["mdp"], "demos"))
+    if os.path.exists(verifier["p2demos"]):
+        shutil.rmtree(verifier["p2demos"])
+    os.makedirs(os.path.join(verifier["mdp"], "demos"))
+    os.makedirs(verifier["p2demos"])
+
+def copyDemos():
+    #check for zip unpacking
+    files = os.listdir(verifier["run"])
+    unpack = True
+    unpackFile = None
+    for file in files:
+        if file.endswith(".zip"):
+            if unpackFile is not None:
+                unpack = False
+            unpackFile = file
+        else:
+            unpack = False
+
+    if unpack:
+        log("Unpacking zip file")
+        shutil.unpack_archive(os.path.join(verifier["run"], unpackFile), verifier["run"])
+        os.remove(os.path.join(verifier["run"], unpackFile))
+
+    #fetch all demos from run/
+    log("Copying demos to mdp")
+    for root, dirs, files in os.walk(verifier["run"]):
+        for file in files:
+            if file.endswith(".dem"):
+                sourceFile = os.path.join(root, file)
+                destinationFile = os.path.join(verifier["mdp"], "demos", file)
+                portal2Destination = os.path.join(verifier["p2demos"], file)
+                shutil.copy2(sourceFile, destinationFile)
+                shutil.copy2(sourceFile, portal2Destination)
+
+def initMdp():
+    log("Running mdp")
+    process = subprocess.Popen([os.path.join(verifier["mdp"], "mdp.exe")], cwd=verifier["mdp"], stdout=subprocess.PIPE)
+    process.wait()
+    log("mdp finished")
+
+    #read errors
+    with open(os.path.join(verifier["mdp"], "errors.txt")) as f:
+        errors = f.read()
+        if errors:
+            log("mdp encountered errors")
+            print(errors)
+            exit(1)
+
+def sortDemos():
+    log("Parsing mdp output")
+    with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    demo_blocks = content.split("\ndemo: '")
+    verifier["demos"] = {}
+    demo_pattern = re.compile(r"demos/(fullgame_[^']+\.dem)'\s+'[^']+' on ([^ ]+)")
+    for block in demo_blocks:
+        match = demo_pattern.search(block)
+        if match:
+            if match.group(2) not in verifier["demos"]:
+                verifier["demos"][match.group(2)] = []
+            verifier["demos"][match.group(2)].append(match.group(1))
+    log("Parsed mdp output")
+
+async def initTelnet():
+    # Launch Portal 2
+    log("Launching Portal 2")
+    verifier["portal2Process"] = subprocess.Popen([
+        os.path.join(verifier["config"]["portal2"], "portal2.exe"),
+        "-novid", "-netconport", "60", "-window"],
+        cwd=verifier["config"]["portal2"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True  # Ensure the output is in text mode
+    )
+
+    # Check if Telnet port is open
+    telnet_port = 60
+    telnet_host = 'localhost'
+    timeout = 60  # Timeout in seconds
+    start_time = time.time()
+
+    while True:
+        try:
+            with socket.create_connection((telnet_host, telnet_port), timeout=1):
+                log("Telnet client is ready")
+                break
+        except (ConnectionRefusedError, socket.timeout):
+            if time.time() - start_time > timeout:
+                log("Timeout: Telnet client did not open within the expected time")
+                break
+            time.sleep(1)  # Wait for a second before retrying
+
+        if verifier["portal2Process"].poll() is not None:
+            log("Portal 2 process terminated unexpectedly")
+            break
+    
+    # Connect to the Telnet client using telnetlib3
+    if verifier["portal2Process"].poll() is None:  # Ensure the process is still running
+        log("Connecting to Portal 2")
+        reader, writer = await telnetlib3.open_connection(telnet_host, telnet_port)
+        log("Connected to Portal 2")
+        return reader, writer
+    exit(1)
+        
+async def fetchServerNums():
+    if verifier["portal2Process"].poll() is not None:
+        log("Portal 2 process terminated unexpectedly")
+        exit(1)
+    log("Fetching server numbers")
+    demo_pattern = re.compile(r'fullgame_\d+_(\d+)?\.dem')
+
+    demo_files = []
+    for filename in os.listdir(verifier["p2demos"]):
+        print(filename)
+        match = demo_pattern.match(filename)
+        print(match)
+        if match:
+            demonumber = int(match.group(1)) if match.group(1) else 0  # Default to 0 if demonumber is missing
+            demo_files.append((demonumber, filename))
+    print(demo_files)
+    if not demo_files:
+        log("No demo files found")
+        return None, None
+
+    # Find the files with the lowest and highest demonumber
+    min_demo = min(demo_files, key=lambda x: x[0])
+    max_demo = max(demo_files, key=lambda x: x[0])
+
+    print(min_demo, max_demo)
+
+async def main():
+    verifier["config"] = json.load(open("config.json"))
+    if not verifier["config"]:
+        log("Failed to load config")
+        return
+
+    verifier["run"] = os.path.join(verifier["config"]["path"], "run")
+    verifier["mdp"] = os.path.join(verifier["config"]["path"], "mdp")
+    verifier["p2demos"]=os.path.join(verifier["config"]["portal2"], "portal2", "demos", "verifiertool")
+
+    clearFolders()
+    
+    copyDemos()
+
+    initMdp()
+
+    sortDemos()
+
+    # start telnet
+    # verifier["reader"], verifier["writer"] = await initTelnet()
+    # await fetchServerNums()
+
+if __name__ == "__main__":
+   asyncio.run(main())
 
 def resetConfig():
     configTemplate = {
