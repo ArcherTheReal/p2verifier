@@ -130,7 +130,7 @@ def checksumFailes():
     for match in checksumPattern.findall(content):
         checksums.add(match)
 
-    return checksums
+    return list(checksums)
 
 def extractCvars():
     with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
@@ -152,7 +152,7 @@ def extractCvars():
     for match in file_pattern.findall(content):
         files.add(f"file '{match[0]}' has checksum {match[1]}")
 
-    return cvars, files
+    return list(cvars), list(files)
 
 async def initTelnet():
     # Launch Portal 2
@@ -221,12 +221,34 @@ async def fetchServerNums():
 
     print(min_demo, max_demo)
 
+def fillOutput():
+    sarChecksums = checksumFailes()
+    cvars, files = extractCvars()
+
+
+    res = {
+        "rtaTimeBegin": None,
+        "rtaTimeEnd": None,
+        "servernumber": {
+            "start": None,
+            "end": None,
+            "total": None,
+            "matches": None
+        },
+        "sarChecksums": sarChecksums,
+        "cvars": cvars,
+        "files": files,
+        "commands": {}
+    }
+    verifier["output"] = res
+
 async def main():
     verifier["config"] = json.load(open("config.json"))
     if not verifier["config"]:
         log("Failed to load config")
         return
 
+    verifier["output"] = {}
     verifier["run"] = os.path.join(verifier["config"]["path"], "run")
     verifier["mdp"] = os.path.join(verifier["config"]["path"], "mdp")
     verifier["p2demos"]=os.path.join(verifier["config"]["portal2"], "portal2", "demos", "verifiertool")
@@ -239,9 +261,14 @@ async def main():
 
     sortDemos()
 
+
     # start telnet
     # verifier["reader"], verifier["writer"] = await initTelnet()
     # await fetchServerNums()
+
+    fillOutput()
+    with open("output.json", "w") as f:
+        f.write(json.dumps(verifier["output"], indent=4))
 
 if __name__ == "__main__":
    asyncio.run(main())
