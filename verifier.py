@@ -10,9 +10,74 @@ import subprocess
 import socket
 import time
 import re
+import win32con
 
-verifier = {}
-
+verifier = {
+    "mapOrder": [
+        "sp_a1_intro1",
+        "sp_a1_intro2",
+        "sp_a1_intro3",
+        "sp_a1_intro4",
+        "sp_a1_intro5",
+        "sp_a1_intro6",
+        "sp_a1_intro7",
+        "sp_a1_wakeup",
+        "sp_a2_intro",
+        "sp_a2_laser_intro",
+        "sp_a2_laser_stairs",
+        "sp_a2_dual_lasers",
+        "sp_a2_laser_over_goo",
+        "sp_a2_catapult_intro",
+        "sp_a2_trust_fling",
+        "sp_a2_pit_flings",
+        "sp_a2_fizzler_intro",
+        "sp_a2_sphere_peek",
+        "sp_a2_ricochet",
+        "sp_a2_bridge_intro",
+        "sp_a2_bridge_the_gap",
+        "sp_a2_turret_intro",
+        "sp_a2_laser_relays",
+        "sp_a2_turret_blocker",
+        "sp_a2_laser_vs_turret",
+        "sp_a2_pull_the_rug",
+        "sp_a2_column_blocker",
+        "sp_a2_laser_chaining",
+        "sp_a2_triple_laser",
+        "sp_a2_bts1",
+        "sp_a2_bts2",
+        "sp_a2_bts3",
+        "sp_a2_bts4",
+        "sp_a2_bts5",
+        "sp_a2_bts6",
+        "sp_a2_core",
+        "sp_a3_00",
+        "sp_a3_01",
+        "sp_a3_03",
+        "sp_a3_jump_intro",
+        "sp_a3_bomb_flings",
+        "sp_a3_crazy_box",
+        "sp_a3_transition01",
+        "sp_a3_speed_ramp",
+        "sp_a3_speed_flings",
+        "sp_a3_portal_intro",
+        "sp_a3_end",
+        "sp_a4_intro",
+        "sp_a4_tb_intro",
+        "sp_a4_tb_trust_drop",
+        "sp_a4_tb_wall_button",
+        "sp_a4_tb_polarity",
+        "sp_a4_tb_catch",
+        "sp_a4_stop_the_box",
+        "sp_a4_laser_catapult",
+        "sp_a4_laser_platform",
+        "sp_a4_speed_tb_catch",
+        "sp_a4_jump_polarity",
+        "sp_a4_finale1",
+        "sp_a4_finale2",
+        "sp_a4_finale3",
+        "sp_a4_finale4"
+    ]
+}
 def log(message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}]\n{message}\n")
@@ -77,6 +142,7 @@ def copyDemos():
 
     #fetch all demos from run/
     log("Copying demos to mdp")
+    verifier["demoFilenames"] = []
     for root, dirs, files in os.walk(verifier["run"]):
         for file in files:
             if file.endswith(".dem"):
@@ -85,6 +151,8 @@ def copyDemos():
                 portal2Destination = os.path.join(verifier["p2demos"], file)
                 shutil.copy2(sourceFile, destinationFile)
                 shutil.copy2(sourceFile, portal2Destination)
+                verifier["demoFilenames"].append(file)
+    verifier["demoFilenames"] = sorted(verifier["demoFilenames"], key=fileDecorator)
 
 def initMdp():
     log("Running mdp")
@@ -114,6 +182,7 @@ def sortDemos():
 
     demo_blocks = content.split("\ndemo: '")
     verifier["demos"] = {}
+    verifier["demoToMap"] = {}
     demo_pattern = re.compile(r"demos/(fullgame_[^']+\.dem)'\s+'[^']+' on ([^ ]+)")
     for block in demo_blocks:
         match = demo_pattern.search(block)
@@ -121,6 +190,7 @@ def sortDemos():
             if match.group(2) not in verifier["demos"]:
                 verifier["demos"][match.group(2)] = []
             verifier["demos"][match.group(2)].append(match.group(1))
+            verifier["demoToMap"][match.group(1)] = match.group(2)
     verifier["demos"] = {k: sorted(v, key=fileDecorator) for k, v in verifier["demos"].items()}
     log("Parsed mdp output")
 
@@ -178,13 +248,102 @@ def extractRecordingTime(demoFilename):
     else:
         return None
 
-def extractCommands():
+async def fetchServerNum(demoName):
+    if demoName not in verifier["demoToMap"].keys():
+        return None
+
+    if verifier["reader"] is None or verifier["writer"] is None:
+        return None
+    if verifier["portal2Process"].poll() is not None:
+        return None
+    
+    verifier["writer"].write(f"playdemo demos/verifiertool/{demoName}\n")
+    ret = None
+    while True:
+        try:
+            line = await verifier["reader"].readline()
+        except OSError:
+            log("Connection to Portal 2 lost, restarting")
+            time.sleep(5)
+            await initTelnet(True)
+            if ret is None:
+                ret = await fetchServerNum(demoName)
+            break
+
+        if "Server Number:" in line:
+            ret = int(line.split(" ")[2])
+        if verifier["portal2Process"].poll() is not None:
+            break
+        if "session started!" in line.lower():
+            break
+    return ret
+    
+async def fetchServerNums():
+    log("Fetching server numbers")
+    verifier["serverNumbers"] = {}
+    await initTelnet(True)
+    for demo in verifier["demoToMap"].keys():
+        verifier["serverNumbers"][demo] = await fetchServerNum(demo)
+    verifier["portal2Process"].terminate()
+
+
+async def initTelnet(textmode=False):
+    # Launch Portal 2
+        
+    path = [os.path.join(verifier["config"]["portal2"], "portal2.exe"), "-novid", "-netconport", "60", "-window"]
+    startupInfo = subprocess.STARTUPINFO()
+    startupInfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    if textmode:
+        path.append("-textmode")
+        path.append("-noshaderapi")
+        startupInfo.wShowWindow = win32con.SW_SHOWMINIMIZED
+
+    verifier["portal2Process"] = subprocess.Popen(
+        path,
+        cwd=verifier["config"]["portal2"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        startupinfo=startupInfo
+    )
+
+        
+
+    # Check if Telnet port is open
+    telnet_port = 60
+    telnet_host = 'localhost'
+    timeout = 60  # Timeout in seconds
+    start_time = time.time()
+
+    while True:
+        try:
+            with socket.create_connection((telnet_host, telnet_port), timeout=1):
+                break
+        except (ConnectionRefusedError, socket.timeout):
+            if time.time() - start_time > timeout:
+                log("Timeout: Telnet client did not open within the expected time")
+                break
+            time.sleep(1)  # Wait for a second before retrying
+
+        if verifier["portal2Process"].poll() is not None:
+            log("Portal 2 process terminated unexpectedly")
+            break
+    
+    # Connect to the Telnet client using telnetlib3
+    if verifier["portal2Process"].poll() is None:  # Ensure the process is still running
+        verifier["reader"], verifier["writer"] = await telnetlib3.open_connection(telnet_host, telnet_port)
+        log("Connected to Portal 2")
+        return
+    exit(1)
+
+
+def demoData():
     with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
         content = file.read()
 
      # Regular expression to find demo blocks
     demo_pattern = re.compile(
-        r"demo: 'demos/(?P<demoname>[^']+)'\s+.*?'(?P<mapname>[^']+)' on .*?events:\s+(?P<commands>.*?)\n\s*\n",
+        r"demo: 'demos/(?P<demoname>[^']+)'\s+.*?'(?P<playerName>[^']+)' on .*?events:\s+(?P<commands>.*?)\n\s*\n",
         re.DOTALL
     )
     
@@ -199,94 +358,32 @@ def extractCommands():
     ]
     
     demos = {}
+    for map in verifier["mapOrder"]:
+        demos[map] = {}
     
     for match in demo_pattern.finditer(content):
         demoname = match.group('demoname')
-        mapname = match.group('mapname')
+        playername = match.group('playerName')
         commands = match.group('commands').strip().split('\n')
-        
+        mapname = verifier["demoToMap"][demoname]
         # Filter out the excluded patterns
-        filtered_commands = []
+        demoNum = verifier["demoFilenames"].index(demoname)
+        delta = verifier['serverNumbers'][demoname]-verifier['serverNumbers'][verifier["demoFilenames"][demoNum-1]]
+        filtered_commands = [
+            "player: " + playername,
+            "serverNumber: " + str(verifier["serverNumbers"][demoname]) + f"({delta})",
+        ]
         for cmd in commands:
             if not any(re.match(pattern, cmd.strip()) for pattern in exclude_patterns):
                 filtered_commands.append(cmd.strip())
         
         if filtered_commands:
-            if mapname not in demos:
-                demos[mapname] = {}
             demos[mapname][demoname] = filtered_commands
     
     return demos
 
-async def initTelnet():
-    # Launch Portal 2
-    log("Launching Portal 2")
-    verifier["portal2Process"] = subprocess.Popen([
-        os.path.join(verifier["config"]["portal2"], "portal2.exe"),
-        "-novid", "-netconport", "60", "-window"],
-        cwd=verifier["config"]["portal2"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True  # Ensure the output is in text mode
-    )
-
-    # Check if Telnet port is open
-    telnet_port = 60
-    telnet_host = 'localhost'
-    timeout = 60  # Timeout in seconds
-    start_time = time.time()
-
-    while True:
-        try:
-            with socket.create_connection((telnet_host, telnet_port), timeout=1):
-                log("Telnet client is ready")
-                break
-        except (ConnectionRefusedError, socket.timeout):
-            if time.time() - start_time > timeout:
-                log("Timeout: Telnet client did not open within the expected time")
-                break
-            time.sleep(1)  # Wait for a second before retrying
-
-        if verifier["portal2Process"].poll() is not None:
-            log("Portal 2 process terminated unexpectedly")
-            break
-    
-    # Connect to the Telnet client using telnetlib3
-    if verifier["portal2Process"].poll() is None:  # Ensure the process is still running
-        log("Connecting to Portal 2")
-        reader, writer = await telnetlib3.open_connection(telnet_host, telnet_port)
-        log("Connected to Portal 2")
-        return reader, writer
-    exit(1)
-        
-async def fetchServerNums():
-    if verifier["portal2Process"].poll() is not None:
-        log("Portal 2 process terminated unexpectedly")
-        exit(1)
-    log("Fetching server numbers")
-    demo_pattern = re.compile(r'fullgame_\d+_(\d+)?\.dem')
-
-    demo_files = []
-    for filename in os.listdir(verifier["p2demos"]):
-        print(filename)
-        match = demo_pattern.match(filename)
-        print(match)
-        if match:
-            demonumber = int(match.group(1)) if match.group(1) else 0  # Default to 0 if demonumber is missing
-            demo_files.append((demonumber, filename))
-    print(demo_files)
-    if not demo_files:
-        log("No demo files found")
-        return None, None
-
-    # Find the files with the lowest and highest demonumber
-    min_demo = min(demo_files, key=lambda x: x[0])
-    max_demo = max(demo_files, key=lambda x: x[0])
-
-    print(min_demo, max_demo)
 
 def fillOutput():
-    sarChecksums = checksumFailes()
     cvars, files = extractCvars()
     startdemo = verifier["demos"]["sp_a1_intro1"][0]
     enddemo = verifier["demos"]["sp_a4_finale4"][-1]
@@ -301,6 +398,7 @@ def fillOutput():
     time2 = datetime.datetime.strptime(endTimestamp, timestampFormat)
 
 
+
     res = {
         "rta": {
             "start": startTimestamp,
@@ -308,15 +406,14 @@ def fillOutput():
             "total": str(time2-time1),
         },
         "servernumber": {
-            "start": None,
-            "end": None,
-            "total": None,
-            "matches": None
+            "start": verifier["serverNumbers"][startdemo],
+            "end":  verifier["serverNumbers"][enddemo],
+            "total": str(len(verifier["demoFilenames"])) + " " + str(verifier["serverNumbers"][enddemo] - verifier["serverNumbers"][startdemo] + 1)
         },
-        "sarChecksums": sarChecksums,
+        "sarChecksums": checksumFailes(),
         "cvars": cvars,
         "files": files,
-        "commands": {}
+        "demos": demoData()
     }
     verifier["output"] = res
 
@@ -339,11 +436,10 @@ async def main():
 
     sortDemos()
 
-    print(json.dumps(extractCommands(), indent=4))
-
-    # start telnet
-    # verifier["reader"], verifier["writer"] = await initTelnet()
-    # await fetchServerNums()
+    await fetchServerNums()
+    if verifier["portal2Process"].poll() is None:
+        verifier["portal2Process"].terminate()
+    #await initTelnet()
 
     fillOutput()
     with open("output.json", "w") as f:
