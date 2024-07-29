@@ -1,1 +1,3 @@
 vdf
+telnetlib3
+pywin32

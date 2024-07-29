@@ -78,7 +78,14 @@ verifier = {
         "sp_a4_finale4"
     ]
 }
+
 def log(message):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}]\n{message}\n")
+
+def vlog(message):
+    if not verifier["config"]["options"]["verbose"]:
+        return
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}]\n{message}\n")
 
@@ -89,7 +96,8 @@ def getSteamPath():
         return value
     except FileNotFoundError:
         log("Failed to find Steam installation")
-        return None
+        input("Press a key to exit")
+        exit(1)
 
 def getPortal2Folder():
     steamPath = getSteamPath()
@@ -101,7 +109,8 @@ def getPortal2Folder():
 
     if not os.path.exists(libraryFolders):
         log("Failed to find libraryfolders.vdf")
-        return None
+        input("Press a key to exit")
+        exit(1)
     
     libraryFolders = vdf.load(open(libraryFolders))["libraryfolders"]
     for folder in libraryFolders.values():
@@ -112,7 +121,8 @@ def getPortal2Folder():
                 return portal2Path
             
     log("Failed to find Portal 2 installation")
-    return None
+    input("Press a key to exit")
+    exit(1)
 
 def clearFolders():
     if os.path.exists(os.path.join(verifier["mdp"], "demos")):
@@ -135,7 +145,7 @@ def copyDemos():
         else:
             unpack = False
 
-    if unpack:
+    if unpack and verifier["config"]["options"]["unzipper"]:
         log("Unpacking zip file")
         shutil.unpack_archive(os.path.join(verifier["run"], unpackFile), verifier["run"])
         os.remove(os.path.join(verifier["run"], unpackFile))
@@ -146,6 +156,7 @@ def copyDemos():
     for root, dirs, files in os.walk(verifier["run"]):
         for file in files:
             if file.endswith(".dem"):
+                vlog(f"Copying {file}")
                 sourceFile = os.path.join(root, file)
                 destinationFile = os.path.join(verifier["mdp"], "demos", file)
                 portal2Destination = os.path.join(verifier["p2demos"], file)
@@ -166,6 +177,7 @@ def initMdp():
         if errors:
             log("mdp encountered errors")
             print(errors)
+            input("Press a key to exit")
             exit(1)
 
 def fileDecorator(filename):
@@ -187,14 +199,16 @@ def sortDemos():
     for block in demo_blocks:
         match = demo_pattern.search(block)
         if match:
+            vlog(f"Found demo {match.group(1)} on {match.group(2)}")
             if match.group(2) not in verifier["demos"]:
                 verifier["demos"][match.group(2)] = []
             verifier["demos"][match.group(2)].append(match.group(1))
             verifier["demoToMap"][match.group(1)] = match.group(2)
     verifier["demos"] = {k: sorted(v, key=fileDecorator) for k, v in verifier["demos"].items()}
-    log("Parsed mdp output")
+    log("Finished parsing mdp output")
 
 def checksumFailes():
+    vlog("Extracting checksum failures")
     with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
         content = file.read()
 
@@ -211,6 +225,7 @@ def checksumFailes():
     return list(checksums)
 
 def extractCvars():
+    vlog("Extracting cvars and file checksums")
     with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
         content = file.read()
 
@@ -233,6 +248,7 @@ def extractCvars():
     return list(cvars), list(files)
 
 def extractRecordingTime(demoFilename):
+    vlog(f"Extracting recording time for {demoFilename}")
     with open(os.path.join(verifier["mdp"], "output.txt"), 'r', encoding='utf-8') as file:
         content = file.read()
 
@@ -249,6 +265,7 @@ def extractRecordingTime(demoFilename):
         return None
 
 async def fetchServerNum(demoName):
+    vlog(f"Fetching server number for {demoName}")
     if demoName not in verifier["demoToMap"].keys():
         return None
 
@@ -334,6 +351,7 @@ async def initTelnet(textmode=False):
         verifier["reader"], verifier["writer"] = await telnetlib3.open_connection(telnet_host, telnet_port)
         log("Connected to Portal 2")
         return
+    input("Portal 2 process terminated unexpectedly, press a key to exit")
     exit(1)
 
 
@@ -379,8 +397,20 @@ def demoData():
         
         if filtered_commands:
             demos[mapname][demoname] = filtered_commands
+
+    changedDemos = {}
     
-    return demos
+    if verifier["config"]["options"]["addIndex"]:
+        for map in demos.keys():
+            newmap = str(map) + " (" + str(verifier["mapOrder"].index(map)+1) + ")"
+            changedDemos[newmap] = {}
+            for demo in demos[map].keys():
+                newdemo = str(demo) + " (" + str(verifier["demoFilenames"].index(demo)+1) + ")"
+                changedDemos[newmap][newdemo] = demos[map][demo]
+    else:
+        changedDemos = demos
+
+    return changedDemos
 
 
 def fillOutput():
@@ -417,11 +447,145 @@ def fillOutput():
     }
     verifier["output"] = res
 
+
+def resetConfig():
+    configTemplate = {
+        "path": os.path.dirname(os.path.abspath(__file__)),
+        "steam": getSteamPath(),
+        "portal2": getPortal2Folder(),
+        "options": {
+            "verbose": False,
+            "commandline": False,
+            "unzipper": True,
+            "addIndex": False
+        },
+        "aliases":{
+            "sla": "playmap sp_a3_bomb_flings sp_a3_crazy_box sp_a4_tb_intro sp_a4_laser_catapult sp_a4_speed_tb_catch sp_a4_jump_polarity"
+        }
+        
+    }
+
+    with open('config.json', 'w') as f:
+        f.write(json.dumps(configTemplate, indent=4))
+
+def firstSetup():
+    if not os.path.exists("config.json"):
+        log("Creating config.json")
+        resetConfig()
+    if not os.path.exists("run"):
+        log("Creating run/")
+        os.makedirs("run")
+    if not os.path.exists("mdp/mdp.exe"):
+        print("You don't have mdp installed. Please install it under mdp/ than relaunch the program.")
+
+    input("First setup complete, chek the config.json file and press a key to exit")
+    exit(0)  
+
+def validateFiles():
+    if not (os.path.exists("config.json") and os.path.exists("run") and os.path.exists("mdp")):
+        log("Missing files, running first setup")
+        firstSetup()
+        return
+    
+    with open("config.json") as f:
+        config = json.load(f)
+        if not (config.get("path") and config.get("steam") and config.get("portal2")):
+            log("Config is missing required fields, resetting")
+            resetConfig()
+            input("Config reset, press a key to exit")
+            exit(1)
+
+    log("File Validation Successful")
+
+async def playDemo(demo):
+    if str(demo).isdigit() and int(demo) > 0 and int(demo) <= len(verifier["demoFilenames"]):
+        demo = verifier["demoFilenames"][int(demo)-1]
+    if not demo.endswith(".dem"):
+        demo += ".dem"
+
+    if demo not in verifier["demoFilenames"]:
+        print("Demo not found")
+        return
+    
+    if verifier["portal2Process"].poll() is not None:
+        print("Portal 2 process terminated unexpectedly, relaunching")
+        await initTelnet()
+    
+    verifier["writer"].write(f"playdemo demos/verifiertool/{demo}\n")
+    finishcnt = 0
+    while True:
+        try:
+            line = await verifier["reader"].readline()
+        except OSError:
+            log("Connection to Portal 2 lost, stopping")
+            break
+
+        if verifier["portal2Process"].poll() is not None:
+            break
+        if "Demo playback finished" in line:
+            finishcnt += 1
+        if finishcnt == 2:
+            break
+
+#async def playMap(map):
+
+async def commandHandler(command):
+    args = command.split(" ")[1:]
+    command = command.split(" ")[0]
+    if command == "exit":
+        if verifier["portal2Process"].poll() is None:
+            verifier["portal2Process"].terminate()
+        exit(0)
+    elif command == "help":
+        print("Commands:")
+        print("exit: Exit the program")
+        print("help: Display this help message")
+        print("playmap <maps>: Play all demos of all maps (mapname or index) ")
+        print("playdemo <demos>: Plays all demos (by filename, demoname or index)")
+        print("To add aliases modify config.json")
+    elif command == "playdemo":
+        if len(args) == 0:
+            print("Usage: playdemo <demo>")
+            return
+        for demo in args:
+            await playDemo(demo)
+
+    elif command == "playmap":
+        if len(args) == 0:
+            print("Usage: playmap <maps>")
+            return
+        for map in args:
+            if map.isdigit() and int(map) > 0 and int(map) <= len(verifier["mapOrder"]):
+                map = verifier["mapOrder"][int(map)-1]
+            if map not in verifier["demos"]:
+                print(f"Map {map} not found")
+                return
+            for demo in verifier["demos"][map]:
+                await playDemo(demo)
+    elif command in verifier["config"]["aliases"].keys():
+        if verifier["config"]["aliases"][command] in verifier["config"]["aliases"].keys():
+            print("Alias loop detected")
+            return
+        await commandHandler(verifier["config"]["aliases"][command])
+
+
+    else:
+        print("Invalid command, type 'help' for a list of commands")
+
+
+
+async def cli():
+    while True:
+        command = input("Enter a command: ")
+        await commandHandler(command)
+        
 async def main():
+    validateFiles()
     verifier["config"] = json.load(open("config.json"))
     if not verifier["config"]:
         log("Failed to load config")
-        return
+        input("Press a key to exit")
+        exit(1)
 
     verifier["output"] = {}
     verifier["run"] = os.path.join(verifier["config"]["path"], "run")
@@ -445,51 +609,10 @@ async def main():
     with open("output.json", "w") as f:
         f.write(json.dumps(verifier["output"], indent=4))
 
+    if verifier["config"]["options"]["commandline"]:
+        log("Running Portal 2")
+        await initTelnet()
+        await cli()
+
 if __name__ == "__main__":
    asyncio.run(main())
-
-def resetConfig():
-    configTemplate = {
-        "path": os.path.dirname(os.path.abspath(__file__)),
-        "steam": getSteamPath(),
-        "portal2": getPortal2Folder(),
-        "options": [
-
-        ]
-    }
-
-    with open('config.json', 'w') as f:
-        f.write(json.dumps(configTemplate, indent=4))
-
-def firstSetup():
-    if not os.path.exists("config.json"):
-        log("Creating config.json")
-        resetConfig()
-    if not os.path.exists("run"):
-        log("Creating run/")
-        os.makedirs("run")
-    if not os.path.exists("mdp"):
-        print("You don't have mdp installed. Please install it under mdp/ than relaunch the program.")
-        exit(1)
-    if not os.path.exists("mdp/mdp.exe"):
-        print("You don't have mdp installed. Please install it under mdp/ than relaunch the program.")
-        exit(1)
-    
-
-    validateFiles()
-
-def validateFiles():
-    log("Starting File Validation")
-    if not (os.path.exists("config.json") and os.path.exists("run") and os.path.exists("mdp")):
-        log("Missing files, running first setup")
-        firstSetup()
-        return
-    
-    with open("config.json") as f:
-        config = json.load(f)
-        if not (config.get("path") and config.get("steam") and config.get("portal2")):
-            log("Config is missing required fields, resetting")
-            resetConfig()
-            return
-
-    log("File Validation Successful")
