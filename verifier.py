@@ -400,7 +400,7 @@ def demoData():
 
     changedDemos = {}
     
-    if verifier["config"]["options"]["addIndex"]:
+    if verifier["config"]["options"]["addindex"]:
         for map in demos.keys():
             newmap = str(map) + " (" + str(verifier["mapOrder"].index(map)+1) + ")"
             changedDemos[newmap] = {}
@@ -440,7 +440,7 @@ def fillOutput():
             "end":  verifier["serverNumbers"][enddemo],
             "total": str(len(verifier["demoFilenames"])) + " " + str(verifier["serverNumbers"][enddemo] - verifier["serverNumbers"][startdemo] + 1)
         },
-        "sarChecksums": checksumFailes(),
+        "sarchecksums": checksumFailes(),
         "cvars": cvars,
         "files": files,
         "demos": demoData()
@@ -457,7 +457,7 @@ def resetConfig():
             "verbose": False,
             "commandline": False,
             "unzipper": True,
-            "addIndex": False
+            "addindex": False
         },
         "aliases":{
             "sla": "playmap sp_a3_bomb_flings sp_a3_crazy_box sp_a4_tb_intro sp_a4_laser_catapult sp_a4_speed_tb_catch sp_a4_jump_polarity"
