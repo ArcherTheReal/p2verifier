@@ -4,10 +4,11 @@ This is a tool that automates as much of the verification process as possible
 
 ### Setup
 
-1. Run verifier.py
+0. Install dependecies with `pip install -r requirements.txt`
+2. Run verifier.py
     - This will make all necessary files for using it
-2. Install mdp under mdp/, so you have mdp/mdp.exe
-3. Open config.json and look at the options you want to customize
+3. Install mdp under mdp/, so you have mdp/mdp.exe
+4. Open config.json and look at the options you want to customize
 
 ### Usage
 
