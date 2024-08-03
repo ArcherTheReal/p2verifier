@@ -1,5 +1,29 @@
 from setuptools import setup, find_packages
+from setuptools.command.install import install
 import os
+import shutil
+
+class CustomInstallCommand(install):
+    """Customized setuptools install command to place files in the current directory."""
+    def run(self):
+        install.run(self)
+        self.copy_files()
+
+    def copy_files(self):
+        # Define the source and destination directories
+        source_dir = os.path.join(os.path.dirname(__file__), 'verifier', 'run_files')
+        dest_dir = os.getcwd()  # Current working directory
+        
+        # Ensure destination directory exists
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
+
+        # Copy files
+        for filename in os.listdir(source_dir):
+            full_file_name = os.path.join(source_dir, filename)
+            if os.path.isfile(full_file_name):
+                shutil.copy(full_file_name, dest_dir)
+                print(f"Copied {full_file_name} to {dest_dir}")
 
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
