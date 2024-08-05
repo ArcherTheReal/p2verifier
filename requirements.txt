@@ -1,3 +1,4 @@
 vdf
 telnetlib3
 pywin32
+tqdm
