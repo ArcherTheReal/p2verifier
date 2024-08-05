@@ -1,50 +1,19 @@
-from setuptools import setup, find_packages
-from setuptools.command.install import install
 import os
-import shutil
+import subprocess
+from verifier.colors import Colors
+from verifier import config
 
-class CustomInstallCommand(install):
-    """Customized setuptools install command to place files in the current directory."""
-    def run(self):
-        install.run(self)
-        self.copy_files()
+git_repo = "https://github.com/ArcherTheReal/p2verifier.git"
 
-    def copy_files(self):
-        # Define the source and destination directories
-        source_dir = os.path.join(os.path.dirname(__file__), 'verifier', 'run_files')
-        dest_dir = os.getcwd()  # Current working directory
-        
-        # Ensure destination directory exists
-        if not os.path.exists(dest_dir):
-            os.makedirs(dest_dir)
+config.reset_config()
 
-        # Copy files
-        for filename in os.listdir(source_dir):
-            full_file_name = os.path.join(source_dir, filename)
-            if os.path.isfile(full_file_name):
-                shutil.copy(full_file_name, dest_dir)
-                print(f"Copied {full_file_name} to {dest_dir}")
+ans = input(Colors.colorize("WARNING: This will overwrite all files of the project. Are you sure you want to continue? (y/n) ", Colors.RED))
+if ans.lower() != "y":
+    exit()
 
-with open('requirements.txt') as f:
-    requirements = f.read().splitlines()
 
-setup(
-    name='p2verifier',
-    version='0.2.0',
-    author='Archer',
-    description='A tool to automate the Portal 2 verification process',
-    url='https://github.com/ArcherTheReal/p2verifier',
-    packages=find_packages(),
-    include_package_data=True,
-    install_requires=requirements,
-    entry_points={
-        'console_scripts': [
-            'p2verifier=verifier.main:main',  # Ensure this points to the main function in verifier.py
-        ],
-    },
-    classifiers=[
-        'Programming Language :: Python :: 3',
-        'Operating System :: OS Independent',
-    ],
-    license='MIT',
-)
+subprocess.run(["pip", "install", "-r", "requirements.txt"])
+
+os.makedirs("run", exist_ok=True)
+
+config.validate_files()
