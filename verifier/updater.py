@@ -12,16 +12,41 @@ def get_release(repo, version = None):
     else:
         url += "latest"
     response = requests.get(url)
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        error(f"Failed to get release from {url}: {e}")
+        return None
     return response.json()
 
 def download_file(url, dest):
     response = requests.get(url, stream=True)
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        error(f"Failed to download file from {url}: {e}")
+        return
     with open(dest, 'wb') as file:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
 
+def download_repo(repo, target_folder):
+    api_url = f"https://api.github.com/repos/{repo}"
+    response = requests.get(api_url)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        error(f"Failed to get repo contents from {api_url}: {e}")
+        return
+
+    for item in response.json():
+        if item['type'] == 'dir':
+            os.makedirs(os.path.join(target_folder, item['name']), exist_ok=True)
+        elif item['type'] == 'file':
+            download_file(item['download_url'], os.path.join(target_folder, item['name']))
+        else:
+            error(f"Unknown item type: {item['type']}")
+            
 def read_local_version(version_file):
     if os.path.exists(version_file):
         with open(version_file, 'r') as file:
@@ -32,8 +57,11 @@ def write_local_version(version_file, version):
     with open(version_file, 'w') as file:
         file.write(version)
 
+
 def update_mdp(repo, target_folder, version = None):
     release = get_release(repo, version)
+    if release is None:
+        return
     online_version = release['tag_name']
 
     if not os.path.exists(target_folder):
@@ -58,9 +86,12 @@ def update_mdp(repo, target_folder, version = None):
     write_local_version(version_file, online_version)
 
     log(f"mdp has been updated to version: {online_version}")
+    
 
 def update_verifier(repo, target_folder, version = None):
     release = get_release(repo, version)
+    if release is None:
+        return
     online_version = release['tag_name']
 
     if not os.path.exists(target_folder):
@@ -105,16 +136,3 @@ def update_verifier(repo, target_folder, version = None):
     
     write_local_version(version_file, online_version)
     log(f"verifier has been updated to version: {online_version}")
-
-def install(repo, target_folder, branch = "main"):
-    api_url = f"https://api.github.com/repos/{repo}/contents?ref={branch}"
-    response = requests.get(api_url)
-    response.raise_for_status()
-
-    for item in response.json():
-        if item['type'] == 'dir':
-            os.makedirs(os.path.join(target_folder, item['name']), exist_ok=True)
-        elif item['type'] == 'file':
-            download_file(item['download_url'], os.path.join(target_folder, item['name']))
-        else:
-            error(f"Unknown item type: {item['type']}")

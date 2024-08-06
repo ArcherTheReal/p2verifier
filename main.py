@@ -6,7 +6,7 @@ import subprocess
 from verifier.config import validate_files, load_config, setup_paths
 from verifier.logger import log, error
 from verifier.files import clear_folders, copy_demos
-from verifier.mdp import init_mdp, sort_demos
+from verifier.mdp import init_mdp, sort_demos, get_sar_checksums
 from verifier.telnet import fetch_server_nums
 from verifier.utils import fill_output, cli
 from verifier.verifier import Verifier
@@ -33,7 +33,24 @@ async def main():
     if verifier.config["options"]["autoupdate"]["MDP"]:
         updater.update_mdp("p2sr/mdp", os.path.join(cwd, "mdp"))
     if verifier.config["options"]["autoupdate"]["MDPFiles"]:
-        updater.install("ArcherTheReal/p2verifier", os.path.join(cwd, "mdp"), "mdp-files")
+        updater.download_repo("ArcherTheReal/p2verifier/contents?ref=mdp-files", os.path.join(cwd, "mdp"))
+    if verifier.config["options"]["autoupdate"]["SARChecksums"]:
+        if not os.path.exists(os.path.join(cwd, "sar_checksums.json")):
+            with open(os.path.join(cwd, "sar_checksums.json"), 'w') as file:
+                file.write("")
+        with open(os.path.join(cwd, "sar_checksums.json"), 'r') as file:
+            checksums = json.load(file)
+        new_checksums = get_sar_checksums(checksums.values())
+        if new_checksums:
+            checksums.update()
+        with open(os.path.join(cwd, "sar_checksums.json"), 'w') as file:
+            file.write(json.dumps(checksums, indent=4))
+    
+    if not os.path.exists(os.path.join(cwd, "sar_checksums.json")):
+        with open(os.path.join(cwd, "sar_checksums.json"), 'w') as file:
+            file.write("")
+    with open(os.path.join(cwd, "sar_checksums.json"), 'r') as file:
+        verifier.sar_checksums = json.load(file)
 
     setup_paths(verifier)
 

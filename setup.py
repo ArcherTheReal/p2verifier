@@ -4,6 +4,8 @@ import importlib
 import zipfile
 import shutil
 import requests
+import json
+
 
 git_repo = "ArcherTheReal/p2verifier"
 mdp_repo = "p2sr/mdp"
@@ -70,20 +72,25 @@ def update_verifier(repo, target_folder):
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
-update_verifier(git_repo, cwd)
+#update_verifier(git_repo, cwd)
 
 subprocess.run(["pip", "install", "-r", "requirements.txt"])
 
 config = importlib.import_module("verifier.config")
 updater = importlib.import_module("verifier.updater")
 logger = importlib.import_module("verifier.logger")
+mdp = importlib.import_module("verifier.mdp")
 
 logger.log("Installed verifier")
 
 os.makedirs(os.path.join(cwd, "run"), exist_ok=True)
 
 updater.update_mdp(mdp_repo, os.path.join(cwd, "mdp"))
-updater.install(git_repo, os.path.join(cwd, "mdp"), "mdp-files")
+updater.download_repo(git_repo+"/contents?ref=mdp-files", os.path.join(cwd, "mdp"))
+
+checksums = mdp.get_sar_checksums()
+with open(os.path.join(cwd, "sar_checksums.json"), 'w') as file:
+    file.write(json.dumps(checksums, indent=4))
 
 config.reset_config(cwd)
 

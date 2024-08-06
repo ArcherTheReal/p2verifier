@@ -166,3 +166,4 @@ run/*
 config.json
 output.json
 version.txt
+sar_checksums.json

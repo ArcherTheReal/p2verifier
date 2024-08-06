@@ -12,6 +12,7 @@ class Verifier:
         self.reader = None
         self.writer = None
         self.portal2Process = None
+        self.sar_checksums = {}
         self.mapOrder = [
             "sp_a1_intro1",
             "sp_a1_intro2",

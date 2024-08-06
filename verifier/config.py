@@ -5,9 +5,10 @@ from verifier.logger import log, error
 import vdf
 
 from verifier.verifier import Verifier
+from verifier.mdp import get_sar_checksums
 
 
-file_list=["run", "mdp", "mdp/mdp.exe"]
+file_list=["run", "mdp", "mdp/mdp.exe", "sar_checksums.json"]
 
 
 
@@ -58,12 +59,13 @@ config_template = {
         "autoupdate": {
             "Verifier": True,
             "MDP": True,
-            "MDPFiles": False
+            "MDPFiles": False,
+            "SARChecksums": True
         }
     },
     "aliases": {
         "sla": "playmap sp_a3_bomb_flings sp_a3_crazy_box sp_a4_tb_intro sp_a4_laser_catapult sp_a4_speed_tb_catch sp_a4_jump_polarity"
-    }
+    },
 }
 
 
