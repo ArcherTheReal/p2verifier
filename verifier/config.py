@@ -53,8 +53,13 @@ config_template = {
     "portal2": get_portal2_folder(),
     "options": {
         "unzipper": True,
-        "commandline": False,
-        "addindex": False
+        "commandline": True,
+        "addindex": False,
+        "autoupdate": {
+            "Verifier": True,
+            "MDP": True,
+            "MDPFiles": False
+        }
     },
     "aliases": {
         "sla": "playmap sp_a3_bomb_flings sp_a3_crazy_box sp_a4_tb_intro sp_a4_laser_catapult sp_a4_speed_tb_catch sp_a4_jump_polarity"

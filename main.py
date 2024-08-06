@@ -11,6 +11,7 @@ from verifier.telnet import fetch_server_nums
 from verifier.utils import fill_output, cli
 from verifier.verifier import Verifier
 from verifier import config
+from verifier import updater
 
 
 
@@ -19,12 +20,20 @@ verifier = Verifier()
 async def main():
     cwd = os.path.dirname(os.path.abspath(__file__))
 
+
     validate_files(cwd)
     verifier.config = load_config(cwd)
     if not verifier.config:
         error("Failed to load config")
         input("Press a key to exit")
         exit(1)
+
+    if verifier.config["options"]["autoupdate"]["Verifier"]:
+        updater.update_verifier("ArcherTheReal/p2verifier", cwd)
+    if verifier.config["options"]["autoupdate"]["MDP"]:
+        updater.update_mdp("p2sr/mdp", os.path.join(cwd, "mdp"))
+    if verifier.config["options"]["autoupdate"]["MDPFiles"]:
+        updater.install("ArcherTheReal/p2verifier", os.path.join(cwd, "mdp"), "mdp-files")
 
     setup_paths(verifier)
 

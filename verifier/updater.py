@@ -100,7 +100,21 @@ def update_verifier(repo, target_folder, version = None):
             os.rmdir(extracted_folder)
     # Remove the zip file
     os.remove(os.path.join(target_folder, 'source.zip'))
+    os.rmdir(os.path.join(target_folder, "upstream"))
 
     
     write_local_version(version_file, online_version)
     log(f"verifier has been updated to version: {online_version}")
+
+def install(repo, target_folder, branch = "main"):
+    api_url = f"https://api.github.com/repos/{repo}/contents?ref={branch}"
+    response = requests.get(api_url)
+    response.raise_for_status()
+
+    for item in response.json():
+        if item['type'] == 'dir':
+            os.makedirs(os.path.join(target_folder, item['name']), exist_ok=True)
+        elif item['type'] == 'file':
+            download_file(item['download_url'], os.path.join(target_folder, item['name']))
+        else:
+            error(f"Unknown item type: {item['type']}")

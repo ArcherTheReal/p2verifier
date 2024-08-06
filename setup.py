@@ -63,13 +63,14 @@ def update_verifier(repo, target_folder):
             os.rmdir(extracted_folder)
     # Remove the zip file
     os.remove(zip_path)
+    os.rmdir(os.path.join(target_folder, "upstream"))
 
     with open(os.path.join(target_folder, "version.txt"), 'w') as file:
         file.write(online_version)
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
-update_verifier(git_repo, cwd)
+#update_verifier(git_repo, cwd)
 
 subprocess.run(["pip", "install", "-r", "requirements.txt"])
 
@@ -82,7 +83,8 @@ logger.log("Installed verifier")
 os.makedirs(os.path.join(cwd, "run"), exist_ok=True)
 
 updater.update_mdp(mdp_repo, os.path.join(cwd, "mdp"))
+updater.install(git_repo, os.path.join(cwd, "mdp"), "mdp-files")
 
 config.reset_config(cwd)
 
-config.validate_files()
+config.validate_files(cwd)
