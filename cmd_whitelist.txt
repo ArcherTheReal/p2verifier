@@ -1,0 +1,116 @@
+// Fast loads
+sar_fast_load_preset
+ui_loadingscreen_
+sar_disable_progress_bar_update
+sar_prevent_mat_snapshot_recompute
+sar_loads_uncap
+sar_loads_norender
+
+// General SAR commands
+sar_hud_
+sar_toast_
+sar_sr_hud
+sar_speedrun_
+sar_record_at
+sar_record_prefix
+sar_autorecord
+sar_challenge_autostop
+svar_set
+sar_force_fov
+sar_cm_rightwarp
+cond
+say !SAR:
+
+developer
+bind
+swap_ss_input
+
+// Commands run automatically by the game
+voice_modenable
+cmd1 voice_modenable
+cl_playermodel models
+room_type
+dsp_
+snd_profile
+snd_ducktovolume
+snd_setmixer gladosVO vol 0.7
+snd_setmixer potatosVO vol 0.4
+snd_setmixer announcerVO vol 0.7
+snd_setmixer wheatleyVO vol 0.7
+snd_setmixer coreVO vol 0.75
+snd_setmixer caveVO vol 0.88
+setpause
+ss_force_primary_fullscreen
+gameui_allowescape
+gameui_preventescape
+gameui_activate
+gameui_hide
+unpause
+gameinstructor_enable
+voice_enable
+m_rawinput
+voicerecord_toggle
+stopvideos
+stop_transition_videos_fadeout
+playvideo_end_level_transition
+playvideo_exitcommand_nointerrupt
+exec listenserver.cfg
+exec skill1.cfg
+r_flashlightbrightness
+mat_ambient_light
+autosave
+soundfade
+map_wants_save_disable 1
+fs_fios_prefetch_file_in_pack models/container_ride
+
+// Other common commands
+cl_fov 110
+cl_fov 120
+ss_pip
+crosshair
+//sensitivity
+//toggle sensitivity
+//incrementvar sensitivity
+quit
+exit
+sar_exit
+plugin_unload
+
+// Player control
++zoom
+-zoom
++forward
++back
+-forward
+-back
++moveleft
+-moveleft
++moveright
+-moveright
++remote_view
+-remote_view
++attack
+-attack
++attack2
+-attack2
++duck
+-duck
++use
+-use
++jump
+-jump
++leaderboard
+-leaderboard
++quick_ping
+-quick_ping
++coop_ping
+-coop_ping
++movedown
+-movedown
++mouse_menu
+-mouse_menu
+
+// custom
+fps_max 360
+mat_motion_blur_enabled 0 33
+cl_showpos 1
