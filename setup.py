@@ -72,7 +72,7 @@ def update_verifier(repo, target_folder):
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
-#update_verifier(git_repo, cwd)
+update_verifier(git_repo, cwd)
 
 subprocess.run(["pip", "install", "-r", "requirements.txt"])
 
