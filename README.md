@@ -4,31 +4,32 @@ This is a tool that automates as much of the verification process as possible
 
 ### Setup
 
-0. Install dependecies with `pip install -r requirements.txt`
-2. Run verifier.py
-    - This will make all necessary files for using it
-3. Install mdp under mdp/, so you have mdp/mdp.exe
-4. Open config.json and look at the options you want to customize
+> [!IMPORTANT]
+> Make sure you have python installed
+
+1. Download `setup.py` from the latest release
+2. Put `setup.py` into the folder you want to tool in
+3. Run `setup.py`
 
 ### Usage
 
-1. Put all demos that are part of the run under run/
-    - They don't have to be exactly in run/, any subfolder will suffice
+1. Put all demos that are part of the run under `run/`
+    - They don't have to be exactly in `run/`, any subfolder of it will suffice
 2. Alternatively to 1. put a single .zip file into run
-    - Make sure there are no other files or folders in run/
+    - Make sure there are no other files or folders in `run/`
     - Make sure that unzipper is set to true in config.json
-3. Run verifier.py
+3. Run `main.py`
     - Make sure both Steam and Portal 2 are installed
     - SAR isn't required
-4. Look at output.json and run commands if you want
+4. Look at `output.json` and run commands if you want
 
 ### Features and options
 
 - config.json options
     - verbose: puts more logging in the terminal
     - commandline: allows you to send commands to Portal 2
-    - unzipper: incase of a single zip files in run/ unzips it
-    - addindex: adds map and demo indexes to output.json
+    - unzipper: incase of a single zip files in `run/` unzips it
+    - addindex: adds map and demo indexes to `output.json`
 - Setting aliases
     - Add it into config.json before running verifier.py
     - If you are confused look at how the sla alias is set up
@@ -42,10 +43,10 @@ This is a tool that automates as much of the verification process as possible
     - playmap [maps]: plays all demos of all maps
         - they can be a mapname or an index
     - sla: a default alias that plays all maps that i think needs to be verified for accidental sla
-- output.json
+- `output.json`
     - rta: rta time begin, end and elapsed time
     - servernumber: first and last servernumber, amount of demos and servernumber difference is in total
-    - sarchecksums: list of all failed SAR checksums
+    - sarchecksums: list of all deteced SAR checksums
     - cvars: a list of all cvars that were flagged by mdp throughout the run
     - files: all file checksum failes (except SAR)
     - demos: a list of all the commands in all the demos, sorted by mapname
