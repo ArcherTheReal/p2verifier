@@ -203,7 +203,7 @@ async def cli(verifier : Verifier):
     """
     Command-line interface for the verifier.
     """
-    init_telnet(verifier)
+    await init_telnet(verifier)
     while True:
         command = input(Colors.colorize("Enter a command: ", Colors.ORANGE))
         await command_handler(verifier, command)
