@@ -165,3 +165,4 @@ mdp/*
 run/*
 config.json
 output.json
+version.txt

@@ -62,11 +62,11 @@ config_template = {
 }
 
 
-def reset_config():
-    with open('config.json', 'w') as f:
+def reset_config(cwd = os.path.dirname(os.path.abspath(__file__))):
+    with open(os.path.join(cwd, "config.json"), 'w') as f:
         f.write(json.dumps(config_template, indent=4))
 
-def validate_files():
+def validate_files(cwd = os.path.dirname(os.path.abspath(__file__))):
     if not all(os.path.exists(file) for file in file_list):
         error("Missing files, please run setup.py to fix this")
         exit(1)
@@ -77,7 +77,7 @@ def validate_files():
         input("Config reset, press a key to exit")
         exit(1)
 
-    with open("config.json") as f:
+    with open(os.path.join(cwd, "config.json")) as f:
         config = json.load(f)
         if not all(key in config for key in config_template):
             error("Config is missing required fields, resetting")
@@ -87,8 +87,8 @@ def validate_files():
 
     log("File validation successful")
 
-def load_config():
-    with open("config.json") as f:
+def load_config(cwd = os.path.dirname(os.path.abspath(__file__))):
+    with open(os.path.join(cwd, "config.json")) as f:
         return json.load(f)
 
 def setup_paths(verifier : Verifier):

@@ -67,16 +67,22 @@ def update_verifier(repo, target_folder):
     with open(os.path.join(target_folder, "version.txt"), 'w') as file:
         file.write(online_version)
 
+cwd = os.path.dirname(os.path.abspath(__file__))
 
-update_verifier(git_repo, os.path.dirname(os.path.abspath(__file__)))
+update_verifier(git_repo, cwd)
 
 subprocess.run(["pip", "install", "-r", "requirements.txt"])
 
 config = importlib.import_module("verifier.config")
 updater = importlib.import_module("verifier.updater")
+logger = importlib.import_module("verifier.logger")
 
-os.makedirs("run", exist_ok=True)
+logger.log("Installed verifier")
 
-updater.update_mdp(mdp_repo, "mdp")
+os.makedirs(os.path.join(cwd, "run"), exist_ok=True)
+
+updater.update_mdp(mdp_repo, os.path.join(cwd, "mdp"))
+
+config.reset_config(cwd)
 
 config.validate_files()

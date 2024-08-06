@@ -99,7 +99,7 @@ def update_verifier(repo, target_folder, version = None):
             # Remove the now-empty subfolder
             os.rmdir(extracted_folder)
     # Remove the zip file
-    os.remove(zip_path)
+    os.remove(os.path.join(target_folder, 'source.zip'))
 
     
     write_local_version(version_file, online_version)

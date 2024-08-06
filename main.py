@@ -36,7 +36,7 @@ async def main():
         verifier.portal2Process.terminate()
 
     fill_output(verifier)
-    with open("output.json", "w") as f:
+    with open(os.path.join(verifier.config["path"], "output.json"), "w") as f:
         f.write(json.dumps(verifier.output, indent=4))
 
     if verifier.config["options"]["commandline"]:
