@@ -10,14 +10,17 @@ from verifier.mdp import init_mdp, sort_demos
 from verifier.telnet import fetch_server_nums
 from verifier.utils import fill_output, cli
 from verifier.verifier import Verifier
+from verifier import config
 
 
 
 verifier = Verifier()
 
 async def main():
-    validate_files()
-    verifier.config = load_config()
+    cwd = os.path.dirname(os.path.abspath(__file__))
+
+    validate_files(cwd)
+    verifier.config = load_config(cwd)
     if not verifier.config:
         error("Failed to load config")
         input("Press a key to exit")
