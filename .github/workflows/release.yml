@@ -1,0 +1,29 @@
+name: Update setup.py and Attach to Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  update-setup-py:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Modify setup.py with the release tag
+        run: |
+          RELEASE_TAG=${{ github.event.release.tag_name }}
+          sed -i "s/version='.*'/version='${RELEASE_TAG}'/" setup.py
+
+      - name: Attach modified setup.py to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: setup.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
