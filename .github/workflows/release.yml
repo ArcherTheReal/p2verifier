@@ -4,6 +4,12 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+  pull-requests: write
+  deployments: write
+  issues: write
+
 jobs:
   update-setup-py:
     runs-on: ubuntu-latest
