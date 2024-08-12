@@ -9,6 +9,7 @@ import json
 
 git_repo = "ArcherTheReal/p2verifier"
 mdp_repo = "p2sr/mdp"
+version = "latest"
 
 ans = input("\033[31mWARNING: This will overwrite all files of the project. Are you sure you want to continue? (y/n) \033[0m")
 if ans.lower() != "y":
@@ -16,21 +17,25 @@ if ans.lower() != "y":
 
 
 def get_release(repo, version = None):
-    url = f""
+    url = f"https://api.github.com/repos/{repo}/releases/"
     if version:
         url += f"tags/{version}"
     else:
         url += "latest"
+    print(url)
     response = requests.get(url)
     response.raise_for_status()
     return response.json()
 
 
 def update_verifier(repo, target_folder):
-
-    release = requests.get(f"https://api.github.com/repos/{repo}/releases/latest").json()
+    release = ""
+    if version == "latest":
+        release = get_release(repo)
+    else:
+        release = get_release(repo, version)
     online_version = release['tag_name']
-
+    print(f"Updating to version {online_version}")
     if not os.path.exists(target_folder):
         os.makedirs(target_folder)
     
