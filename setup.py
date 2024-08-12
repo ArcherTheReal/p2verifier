@@ -9,7 +9,7 @@ import json
 
 git_repo = "ArcherTheReal/p2verifier"
 mdp_repo = "p2sr/mdp"
-version = "latest"
+download_version='latest'
 
 ans = input("\033[31mWARNING: This will overwrite all files of the project. Are you sure you want to continue? (y/n) \033[0m")
 if ans.lower() != "y":
@@ -30,10 +30,10 @@ def get_release(repo, version = None):
 
 def update_verifier(repo, target_folder):
     release = ""
-    if version == "latest":
+    if download_version == "latest":
         release = get_release(repo)
     else:
-        release = get_release(repo, version)
+        release = get_release(repo, download_version)
     online_version = release['tag_name']
     print(f"Updating to version {online_version}")
     if not os.path.exists(target_folder):

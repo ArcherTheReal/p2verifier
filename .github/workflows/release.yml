@@ -1,4 +1,4 @@
-name: Update setup.py and Attach to Release
+name: Finalize release
 
 on:
   release:
@@ -6,9 +6,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
-  deployments: write
-  issues: write
 
 jobs:
   update-setup-py:
@@ -27,9 +24,12 @@ jobs:
           RELEASE_TAG=${{ github.event.release.tag_name }}
           sed -i "s/version='.*'/version='${RELEASE_TAG}'/" setup.py
 
-      - name: Attach modified setup.py to release
-        uses: softprops/action-gh-release@v1
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
         with:
-          files: setup.py
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: setup.py
+          asset_name: setup.py
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "This is my release text"
